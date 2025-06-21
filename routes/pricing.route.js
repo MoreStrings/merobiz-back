@@ -36,27 +36,4 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.get('/', async (req, res) => {
-  try {
-    const inventory = await readJSON(INVENTORY_JSON);
-    const products = inventory.map((item) => {
-      const basePrice = parseFloat(item.base_price) || 0;
-      const sellingPrice = parseFloat(item.selling_price) || 0;
-      const trendScore = categoryTrendScores[item.product_category] || 0;
-      const dynamicPrice = getDynamicPrice(basePrice, sellingPrice, trendScore);
-      const discountPercent = getDiscountPercent(sellingPrice, dynamicPrice);
-
-      return {
-        ...item,
-        dynamicPrice,
-        discountPercent,
-      };
-    });
-    res.json({ products });
-  } catch (err) {
-    console.error('Error loading products:', err);
-    res.status(500).json({ error: 'Failed to load products' });
-  }
-});
-
 export default router;

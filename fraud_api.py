@@ -1,8 +1,10 @@
 import joblib
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+import pandas as pd
+import io
 
 #loading the model
 model = joblib.load("fraud_detector.pkl")
@@ -80,3 +82,19 @@ def predict(data: FraudInput):
         return result
     except Exception as e:
         return {"error": str(e)}
+    
+
+@app.post("/predict-batch")
+async def predict_batch(file: UploadFile = File(...)):
+    content = await file.read()
+    df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+    results = []
+    for index, row in df.iterrows():
+        try:
+            raw_input = row.to_dict()
+            result = predict_fraud_with_confidence(raw_input)
+            if result["fraudulent"]:
+                results.append({ "index": index, **result, **raw_input })
+        except Exception as e:
+            results.append({ "index": index, "error": str(e) })
+    return results

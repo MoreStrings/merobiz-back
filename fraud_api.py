@@ -88,13 +88,36 @@ def predict(data: FraudInput):
 async def predict_batch(file: UploadFile = File(...)):
     content = await file.read()
     df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+
     results = []
+
     for index, row in df.iterrows():
+        raw_input = row.to_dict()
+        
+        # Extract only model-required fields
+        model_input = {k: raw_input.get(k) for k in FraudInput.model_fields.keys()}
+
         try:
-            raw_input = row.to_dict()
-            result = predict_fraud_with_confidence(raw_input)
+            result = predict_fraud_with_confidence(model_input)
+
             if result["fraudulent"]:
-                results.append({ "index": index, **result, **raw_input })
+                # Merge optional extra fields like email/contact
+                extra_fields = {
+                    k: raw_input[k] for k in raw_input.keys()
+                    if k not in FraudInput.model_fields.keys()
+                }
+
+                results.append({
+                    "index": index,
+                    **result,
+                    **model_input,
+                    **extra_fields
+                })
+
         except Exception as e:
-            results.append({ "index": index, "error": str(e) })
+            results.append({
+                "index": index,
+                "error": str(e)
+            })
+
     return results
